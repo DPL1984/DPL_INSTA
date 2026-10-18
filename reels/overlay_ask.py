@@ -1,6 +1,7 @@
-# DPL reel text layer. overlay.py plus one addition: a beat may carry an optional
-# "ask" string, drawn as a smaller white EB Garamond line (size 44) under the main
-# copy block at y 1046. Reconstructed Oct 18 2026 from a prose description.
+# DPL reel text layer. overlay.py plus two additions:
+#  1. a beat may carry an optional "ask" string, drawn as a smaller white
+#     EB Garamond line (size 44) under the main copy block
+#  2. DPL_PLATFORM shifts the whole text layer to that platform's safe zone
 import os, sys, json, numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
@@ -17,6 +18,32 @@ HANDLE   = "@disasterprooflife"
 XFADE_START, XFADE_LEN = 174, 12
 
 ASK_Y, ASK_SIZE = 1046, 44
+
+# --- platform safe zones, added October 18 2026 ---------------------------
+# TikTok covers the bottom 484px (username, caption, sound, progress bar) and
+# the right 140px (button rail), so its safe box is x 60-940, y 130-1436.
+# The Instagram geometry puts the lockup at y1470 and 1538, which sits behind
+# TikTok's caption block, and lets copy reach x978, which clips the rail.
+# Instagram Reels is safe to y1610 and x996. X publishes no safe zone and its
+# immersive viewer overlay is lighter than both, so it shares the IG geometry.
+# See PLATFORM_SAFE_ZONES.md.
+PLATFORMS = {
+    "instagram": dict(dy=0,    maxw=908),
+    "x":         dict(dy=0,    maxw=908),
+    "tiktok":    dict(dy=-150, maxw=800),
+}
+PLATFORM = os.environ.get("DPL_PLATFORM", "instagram")
+if PLATFORM not in PLATFORMS:
+    raise SystemExit(f"unknown DPL_PLATFORM {PLATFORM!r}, expected one of {sorted(PLATFORMS)}")
+DY   = PLATFORMS[PLATFORM]["dy"]
+MAXW = PLATFORMS[PLATFORM]["maxw"]
+COPY_Y    = 830  + DY
+ASK_Y     = ASK_Y + DY
+LOCKUP_Y  = 1470 + DY
+TAGLINE_Y = 1538 + DY
+POOL_Y    = 830  + DY
+BAND_Y    = 1330 + DY
+# ---------------------------------------------------------------------------
 
 SCRIMS = {
     "legacy": dict(base=12.0, pool=50.0, band=92.0, wide=(24, 1.05), tight=(6, 1.6)),
@@ -54,8 +81,8 @@ def tracked(draw, cx, cy, text, f, fill, track):
 
 def scrim():
     y = np.arange(H, dtype=np.float32)
-    a = S["base"] + S["pool"] * np.exp(-((y - 830) ** 2) / (2 * 400.0 ** 2))
-    a = a + S["band"] / (1 + np.exp(-(y - 1330) / 70.0))
+    a = S["base"] + S["pool"] * np.exp(-((y - POOL_Y) ** 2) / (2 * 400.0 ** 2))
+    a = a + S["band"] / (1 + np.exp(-(y - BAND_Y) / 70.0))
     a = np.clip(a, 0, 150).astype(np.uint8)
     arr = np.zeros((H, W, 4), dtype=np.uint8)
     arr[..., 3] = a[:, None]
@@ -83,14 +110,14 @@ def beat_for(n, BEATS):
         if b["a"] <= n <= b["b"]: return i, b
     raise ValueError(n)
 
-def build(n, BEATS):
+def ink_layer(n, BEATS):
     i, b = beat_for(n, BEATS)
     ink = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(ink)
 
     f, lines = wrap_fit(b["text"], f"EBG-{b['weight']}", b["size"], MAXW)
     lead = int(f.size * 1.24)
-    top = 830 - (len(lines) * lead) / 2
+    top = COPY_Y - (len(lines) * lead) / 2
     for k, ln in enumerate(lines):
         d.text((W / 2, top + k * lead + lead / 2), ln, font=f, fill=b["color"], anchor="mm")
 
@@ -98,13 +125,16 @@ def build(n, BEATS):
         af, alines = wrap_fit(b["ask"], "EBG-600", ASK_SIZE, MAXW, max_lines=1)
         d.text((W / 2, ASK_Y), alines[0], font=af, fill=WHITE, anchor="mm")
 
-    tracked(d, W / 2, 1470, WORDMARK, font("Mont-700", 33), WHITE, 7)
+    tracked(d, W / 2, LOCKUP_Y, WORDMARK, font("Mont-700", 33), WHITE, 7)
     out_t, in_t = fade(n)
     if out_t < 1.0:
-        tracked(d, W / 2, 1538, TAGLINE, font("Mont-500", 26), GOLD + (int(255 * (1 - out_t)),), 6)
+        tracked(d, W / 2, TAGLINE_Y, TAGLINE, font("Mont-500", 26), GOLD + (int(255 * (1 - out_t)),), 6)
     if in_t > 0.0:
-        tracked(d, W / 2, 1538, HANDLE, font("Mont-700", 30), GOLD + (int(255 * in_t),), 3)
+        tracked(d, W / 2, TAGLINE_Y, HANDLE, font("Mont-700", 30), GOLD + (int(255 * in_t),), 3)
+    return ink
 
+def build(n, BEATS):
+    ink = ink_layer(n, BEATS)
     a = ink.split()[3]
     wb, wm = S["wide"]; tb, tm = S["tight"]
     wide = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -132,7 +162,7 @@ if __name__ == "__main__":
         n = int(sys.argv[3]); frame(n).save(sys.argv[4]); print("wrote", sys.argv[4]); raise SystemExit
 
     out = cfg["out"]
-    os.makedirs("out", exist_ok=True)
+    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     p = subprocess.Popen([
         "ffmpeg", "-v", "error", "-y",
         "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
@@ -142,4 +172,4 @@ if __name__ == "__main__":
     for n in range(NF):
         p.stdin.write(frame(n).tobytes())
     p.stdin.close(); p.wait()
-    print(f"wrote {out} rc {p.returncode} | scrim={SCRIM_MODE} | unique overlays {len(cache)}")
+    print(f"wrote {out} rc {p.returncode} | scrim={SCRIM_MODE} | platform={PLATFORM} | overlays {len(cache)}")
