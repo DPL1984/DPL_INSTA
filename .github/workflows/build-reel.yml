@@ -1,0 +1,114 @@
+name: Build DPL reel
+
+on:
+  workflow_dispatch:
+    inputs:
+      config:
+        description: "Config stem in reels/configs, without .json"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CONFIG: ${{ inputs.config }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Install python deps
+        run: pip install --quiet pillow numpy fonttools
+
+      - name: Instance fonts
+        run: |
+          mkdir -p build/fonts build/src
+          python3 - <<'PY'
+          import subprocess
+          from fontTools.ttLib import TTFont
+          from fontTools.varLib import instancer
+          SRC = {
+            "EBGaramond": "https://raw.githubusercontent.com/google/fonts/main/ofl/ebgaramond/EBGaramond%5Bwght%5D.ttf",
+            "Montserrat": "https://raw.githubusercontent.com/google/fonts/main/ofl/montserrat/Montserrat%5Bwght%5D.ttf",
+          }
+          OUT = {"EBGaramond": [("EBG-600",600),("EBG-700",700)],
+                 "Montserrat": [("Mont-500",500),("Mont-700",700)]}
+          for fam, url in SRC.items():
+              raw = f"build/src/{fam}-var.ttf"
+              subprocess.run(["curl","-sSL","-o",raw,url], check=True)
+              for name, w in OUT[fam]:
+                  f = TTFont(raw)
+                  instancer.instantiateVariableFont(f, {"wght": w}, inplace=False).save(f"build/fonts/{name}.ttf")
+                  print("wrote", name)
+          PY
+
+      - name: Build the reel
+        working-directory: build
+        run: |
+          set -euo pipefail
+          cp ../reels/footage.py ../reels/overlay_ask.py ../reels/measure.py .
+          python3 - <<'PY'
+          import json, os
+          stem = os.environ["CONFIG"]
+          c = json.load(open(f"../reels/configs/{stem}.json"))
+          c["out"] = f"out/{stem}.mp4"
+          json.dump(c, open("cfg.json", "w"))
+          print("building", stem)
+          PY
+          python3 footage.py cfg.json
+          DPL_SCRIM=light python3 overlay_ask.py cfg.json
+          ffmpeg -v error -y -i "out/$CONFIG.mp4" -vf "select='eq(n,100)'" -vsync 0 -frames:v 1 -q:v 2 "out/$CONFIG-cover.jpg"
+          python3 measure.py "out/$CONFIG.mp4" | tee "out/$CONFIG-measurements.txt"
+
+      - name: Gate on the playbook numbers
+        working-directory: build
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, sys
+          stem = os.environ["CONFIG"]
+          t = open(f"out/{stem}-measurements.txt").read()
+          g = lambda k: float(re.search(rf"{k}\s+([\d.]+)", t).group(1))
+          dur, con = g("duration"), g("opening contrast")
+          mot, loop = g("motion, first sec"), g("loop delta")
+          fails = []
+          if abs(dur - 8.0) > 0.01: fails.append(f"duration {dur}")
+          if con < 70: fails.append(f"opening contrast {con}, gate is 70")
+          if mot <= 4.0: fails.append(f"first-second motion {mot}, gate is 4.0")
+          if loop >= 10: fails.append(f"loop delta {loop}, gate is 10")
+          print(t)
+          if fails:
+              print("GATE FAILED: " + "; ".join(fails)); sys.exit(1)
+          print("all gates passed")
+          PY
+          ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 "out/$CONFIG.mp4" > /tmp/a.txt
+          if [ -s /tmp/a.txt ]; then echo "GATE FAILED: audio stream present, reels ship silent"; exit 1; fi
+          echo "no audio stream, correct"
+
+      - name: Name per platform and commit
+        run: |
+          set -euo pipefail
+          DEST="reels/out/$CONFIG"
+          mkdir -p "$DEST"
+          for P in instagram x tiktok; do
+            cp "build/out/$CONFIG.mp4" "$DEST/$CONFIG-$P.mp4"
+          done
+          cp "build/out/$CONFIG-cover.jpg" "$DEST/"
+          cp "build/out/$CONFIG-measurements.txt" "$DEST/"
+          git config user.name "DPL build bot"
+          git config user.email "disasterprooflife@outlook.com"
+          git add "$DEST"
+          git commit -m "reels: built $CONFIG" || { echo "nothing changed"; exit 0; }
+          git push
+          echo "Raw URLs:"
+          for P in instagram x tiktok; do
+            echo "  https://raw.githubusercontent.com/DPL1984/DPL_INSTA/main/$DEST/$CONFIG-$P.mp4"
+          done
