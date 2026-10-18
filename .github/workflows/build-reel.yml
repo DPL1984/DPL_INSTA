@@ -14,7 +14,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       CONFIG: ${{ inputs.config }}
     steps:
@@ -45,28 +45,40 @@ jobs:
               raw = f"build/src/{fam}-var.ttf"
               subprocess.run(["curl","-sSL","-o",raw,url], check=True)
               for name, w in OUT[fam]:
+                  TTFont(raw)
                   f = TTFont(raw)
                   instancer.instantiateVariableFont(f, {"wght": w}, inplace=False).save(f"build/fonts/{name}.ttf")
-                  print("wrote", name)
           PY
 
-      - name: Build the reel
+      - name: Grade the footage once
         working-directory: build
         run: |
           set -euo pipefail
-          cp ../reels/footage.py ../reels/overlay_ask.py ../reels/measure.py .
-          python3 - <<'PY'
-          import json, os
-          stem = os.environ["CONFIG"]
-          c = json.load(open(f"../reels/configs/{stem}.json"))
-          c["out"] = f"out/{stem}.mp4"
-          json.dump(c, open("cfg.json", "w"))
-          print("building", stem)
-          PY
+          cp ../reels/footage.py ../reels/overlay_ask.py ../reels/measure.py ../reels/safezone_check.py .
+          cp "../reels/configs/$CONFIG.json" cfg.json
           python3 footage.py cfg.json
-          DPL_SCRIM=light python3 overlay_ask.py cfg.json
-          ffmpeg -v error -y -i "out/$CONFIG.mp4" -vf "select='eq(n,100)'" -vsync 0 -frames:v 1 -q:v 2 "out/$CONFIG-cover.jpg"
-          python3 measure.py "out/$CONFIG.mp4" | tee "out/$CONFIG-measurements.txt"
+
+      - name: Render each platform to its own safe zone
+        working-directory: build
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          for P in instagram x tiktok; do
+            echo "::group::$P"
+            python3 - "$P" <<'PY'
+          import json, os, sys
+          p = sys.argv[1]; stem = os.environ["CONFIG"]
+          c = json.load(open("cfg.json"))
+          c["out"] = f"out/{stem}-{p}.mp4"
+          json.dump(c, open(f"cfg-{p}.json", "w"))
+          PY
+            DPL_PLATFORM=$P DPL_SCRIM=light python3 safezone_check.py "cfg-$P.json"
+            DPL_PLATFORM=$P DPL_SCRIM=light python3 overlay_ask.py "cfg-$P.json"
+            ffmpeg -v error -y -i "out/$CONFIG-$P.mp4" -vf "select='eq(n,100)'" -vsync 0 \
+              -frames:v 1 -q:v 2 "out/$CONFIG-$P-cover.jpg"
+            python3 measure.py "out/$CONFIG-$P.mp4" | tee "out/$CONFIG-$P-measurements.txt"
+            echo "::endgroup::"
+          done
 
       - name: Gate on the playbook numbers
         working-directory: build
@@ -74,39 +86,39 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           import os, re, sys
-          stem = os.environ["CONFIG"]
-          t = open(f"out/{stem}-measurements.txt").read()
-          g = lambda k: float(re.search(rf"{k}\s+([\d.]+)", t).group(1))
-          dur, con = g("duration"), g("opening contrast")
-          mot, loop = g("motion, first sec"), g("loop delta")
-          fails = []
-          if abs(dur - 8.0) > 0.01: fails.append(f"duration {dur}")
-          if con < 70: fails.append(f"opening contrast {con}, gate is 70")
-          if mot <= 4.0: fails.append(f"first-second motion {mot}, gate is 4.0")
-          if loop >= 10: fails.append(f"loop delta {loop}, gate is 10")
-          print(t)
-          if fails:
-              print("GATE FAILED: " + "; ".join(fails)); sys.exit(1)
-          print("all gates passed")
+          stem = os.environ["CONFIG"]; bad = []
+          for p in ("instagram", "x", "tiktok"):
+              t = open(f"out/{stem}-{p}-measurements.txt").read()
+              g = lambda k: float(re.search(rf"{k}\s+([\d.]+)", t).group(1))
+              dur, con = g("duration"), g("opening contrast")
+              mot, loop = g("motion, first sec"), g("loop delta")
+              print(f"--- {p} ---"); print(t)
+              if abs(dur - 8.0) > 0.01: bad.append(f"{p} duration {dur}")
+              if con < 70:  bad.append(f"{p} opening contrast {con}, gate 70")
+              if mot <= 4.0: bad.append(f"{p} first-second motion {mot}, gate 4.0")
+              if loop >= 10: bad.append(f"{p} loop delta {loop}, gate 10")
+          if bad:
+              print("GATE FAILED: " + "; ".join(bad)); sys.exit(1)
+          print("all gates passed on all three platforms")
           PY
-          ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 "out/$CONFIG.mp4" > /tmp/a.txt
-          if [ -s /tmp/a.txt ]; then echo "GATE FAILED: audio stream present, reels ship silent"; exit 1; fi
-          echo "no audio stream, correct"
+          for P in instagram x tiktok; do
+            ffprobe -v error -select_streams a -show_entries stream=codec_type \
+              -of csv=p=0 "out/$CONFIG-$P.mp4" > /tmp/a.txt
+            if [ -s /tmp/a.txt ]; then echo "GATE FAILED: $P has an audio stream"; exit 1; fi
+          done
+          echo "no audio stream on any platform, correct"
 
-      - name: Name per platform and commit
+      - name: Commit
         run: |
           set -euo pipefail
           DEST="reels/out/$CONFIG"
           mkdir -p "$DEST"
-          for P in instagram x tiktok; do
-            cp "build/out/$CONFIG.mp4" "$DEST/$CONFIG-$P.mp4"
-          done
-          cp "build/out/$CONFIG-cover.jpg" "$DEST/"
-          cp "build/out/$CONFIG-measurements.txt" "$DEST/"
+          cp build/out/$CONFIG-*.mp4 build/out/$CONFIG-*-cover.jpg build/out/$CONFIG-*-measurements.txt "$DEST/"
           git config user.name "DPL build bot"
           git config user.email "disasterprooflife@outlook.com"
           git add "$DEST"
-          git commit -m "reels: built $CONFIG" || { echo "nothing changed"; exit 0; }
+          git commit -m "reels: built $CONFIG, three platform safe zones" || { echo "nothing changed"; exit 0; }
+          git pull --rebase
           git push
           echo "Raw URLs:"
           for P in instagram x tiktok; do
