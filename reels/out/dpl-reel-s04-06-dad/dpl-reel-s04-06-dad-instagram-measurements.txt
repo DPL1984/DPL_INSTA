@@ -1,0 +1,6 @@
+frames            240   duration 8.000s
+opening brightness 74
+opening contrast   77
+motion, first sec  5.47
+motion, whole reel 4.55
+loop delta         5.28
