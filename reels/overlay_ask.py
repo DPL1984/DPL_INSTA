@@ -12,7 +12,7 @@ GOLD  = (224, 180, 107)          # Endurance Gold #E0B46B
 F = "fonts/%s.ttf"
 
 WORDMARK = "DISASTER-PROOF LIFE"
-TAGLINE  = "BUILD. STAND. ENDURE."
+TAGLINE  = "BY ENDURANCE WE CONQUER."
 HANDLE   = "@disasterprooflife"
 
 XFADE_START, XFADE_LEN = 174, 12
