@@ -3,4 +3,4 @@ opening brightness 72
 opening contrast   76
 motion, first sec  4.99
 motion, whole reel 2.80
-loop delta         5.07
+loop delta         5.14
