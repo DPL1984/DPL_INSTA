@@ -1,7 +1,8 @@
-# DPL footage layer, parameterised. Grades Mixkit clips into a loop-matched 240-frame base/.
+# DPL footage layer, parameterised. Grades Mixkit clips into a loop-matched base/.
+# Frame count comes from the config's optional "frames" key, default 240 (8s at 30fps).
 import os, shutil, subprocess, sys, json
 
-FPS, NF = 30, 240
+FPS, NF_DEFAULT = 30, 240
 GRADE = ("scale=-2:1920:flags=lanczos,crop=1080:1920,"
          "eq=saturation=0.54:contrast=1.30:gamma=1.04:brightness=0.045,"
          "colorbalance=rs=0.04:rm=0.07:rh=0.05:gm=0.01:bm=-0.05:bh=-0.07,"
@@ -11,9 +12,9 @@ def zoom(rate):
     return (f"zoompan=z='min(1+{rate}*on,1.12)':d=1:"
             "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30")
 
-def make_plan(cuts):
+def make_plan(cuts, nf):
     a, b, c, d = cuts
-    tail = NF - (a + b + c + d)
+    tail = nf - (a + b + c + d)
     assert tail > 1, cuts
     return ([("A", i) for i in range(1, a + 1)]
             + [("B", i) for i in range(1, b + 1)]
@@ -32,7 +33,8 @@ def fetch(mid):
 def main(cfgpath):
     cfg = json.load(open(cfgpath))
     SHOTS = cfg["shots"]
-    PLAN = make_plan(cfg.get("cuts", [18, 44, 67, 69]))
+    NF = int(cfg.get("frames", NF_DEFAULT))
+    PLAN = make_plan(cfg.get("cuts", [18, 44, 67, 69]), NF)
     for name in ("A", "B", "C", "D"):
         mid, ss, n, rate = SHOTS[name]
         src = fetch(mid)
