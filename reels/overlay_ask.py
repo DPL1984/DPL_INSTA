@@ -2,10 +2,13 @@
 #  1. a beat may carry an optional "ask" string, drawn as a smaller white
 #     EB Garamond line (size 44) under the main copy block
 #  2. DPL_PLATFORM shifts the whole text layer to that platform's safe zone
+#  3. the config may carry "frames" (default 240) and an optional "voice" audio
+#     path or URL, muxed in as AAC without touching a single video frame
 import os, sys, json, numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
-W, H, FPS, NF = 1080, 1920, 30, 240
+W, H, FPS = 1080, 1920, 30
+NF_DEFAULT = 240
 MARGIN, MAXW = 86, 908
 WHITE = (242, 239, 233)
 GOLD  = (224, 180, 107)          # Endurance Gold #E0B46B
@@ -15,7 +18,15 @@ WORDMARK = "DISASTER-PROOF LIFE"
 TAGLINE  = "BY ENDURANCE WE CONQUER."
 HANDLE   = "@disasterprooflife"
 
-XFADE_START, XFADE_LEN = 174, 12
+# The gold tagline always hands over to the @handle 66 frames before the end,
+# so the cross-fade follows the config's frame count. At NF 240 this is 174.
+XFADE_BEFORE_END, XFADE_LEN = 66, 12
+
+def frames_for(cfg):
+    return int(cfg.get("frames", NF_DEFAULT))
+
+def xfade_start(nf):
+    return nf - XFADE_BEFORE_END
 
 ASK_Y, ASK_SIZE = 1046, 44
 
@@ -90,9 +101,10 @@ def scrim():
 
 SCRIM = scrim()
 
-def fade(n):
-    o = min(1.0, max(0.0, (n - XFADE_START) / XFADE_LEN))
-    i = min(1.0, max(0.0, (n - (XFADE_START + XFADE_LEN)) / XFADE_LEN))
+def fade(n, nf=NF_DEFAULT):
+    start = xfade_start(nf)
+    o = min(1.0, max(0.0, (n - start) / XFADE_LEN))
+    i = min(1.0, max(0.0, (n - (start + XFADE_LEN)) / XFADE_LEN))
     return round(o, 3), round(i, 3)
 
 def load_beats(cfgpath):
@@ -110,7 +122,7 @@ def beat_for(n, BEATS):
         if b["a"] <= n <= b["b"]: return i, b
     raise ValueError(n)
 
-def ink_layer(n, BEATS):
+def ink_layer(n, BEATS, nf=NF_DEFAULT):
     i, b = beat_for(n, BEATS)
     ink = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(ink)
@@ -126,15 +138,15 @@ def ink_layer(n, BEATS):
         d.text((W / 2, ASK_Y), alines[0], font=af, fill=WHITE, anchor="mm")
 
     tracked(d, W / 2, LOCKUP_Y, WORDMARK, font("Mont-700", 33), WHITE, 7)
-    out_t, in_t = fade(n)
+    out_t, in_t = fade(n, nf)
     if out_t < 1.0:
         tracked(d, W / 2, TAGLINE_Y, TAGLINE, font("Mont-500", 26), GOLD + (int(255 * (1 - out_t)),), 6)
     if in_t > 0.0:
         tracked(d, W / 2, TAGLINE_Y, HANDLE, font("Mont-700", 30), GOLD + (int(255 * in_t),), 3)
     return ink
 
-def build(n, BEATS):
-    ink = ink_layer(n, BEATS)
+def build(n, BEATS, nf=NF_DEFAULT):
+    ink = ink_layer(n, BEATS, nf)
     a = ink.split()[3]
     wb, wm = S["wide"]; tb, tm = S["tight"]
     wide = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -149,12 +161,13 @@ if __name__ == "__main__":
     import subprocess
     cfgpath = sys.argv[1]
     BEATS, cfg = load_beats(cfgpath)
+    NF = frames_for(cfg)
     cache = {}
 
     def frame(n):
         i, _ = beat_for(n, BEATS)
-        key = (i, fade(n))
-        if key not in cache: cache[key] = build(n, BEATS)
+        key = (i, fade(n, NF))
+        if key not in cache: cache[key] = build(n, BEATS, NF)
         base = Image.open(f"base/b_{n:04d}.png").convert("RGBA")
         return Image.alpha_composite(base, cache[key]).convert("RGB")
 
@@ -163,13 +176,25 @@ if __name__ == "__main__":
 
     out = cfg["out"]
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
-    p = subprocess.Popen([
-        "ffmpeg", "-v", "error", "-y",
-        "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
-        "-an", "-c:v", "libx264", "-preset", "slow", "-crf", "17",
-        "-pix_fmt", "yuv420p", "-profile:v", "high", "-level", "4.1",
-        "-movflags", "+faststart", "-g", "30", out], stdin=subprocess.PIPE)
+    voice = cfg.get("voice")
+    dur = NF / FPS
+    cmd = ["ffmpeg", "-v", "error", "-y",
+           "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-"]
+    if voice:
+        # Pad a short voice memo with silence and trim a long one, so the audio is
+        # exactly as long as the video and the frames are never consulted.
+        cmd += ["-i", voice,
+                "-map", "0:v:0", "-map", "1:a:0",
+                "-af", f"apad=whole_dur={dur},atrim=0:{dur}",
+                "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2"]
+    else:
+        cmd += ["-an"]
+    cmd += ["-c:v", "libx264", "-preset", "slow", "-crf", "17",
+            "-pix_fmt", "yuv420p", "-profile:v", "high", "-level", "4.1",
+            "-movflags", "+faststart", "-g", "30", out]
+    p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     for n in range(NF):
         p.stdin.write(frame(n).tobytes())
     p.stdin.close(); p.wait()
-    print(f"wrote {out} rc {p.returncode} | scrim={SCRIM_MODE} | platform={PLATFORM} | overlays {len(cache)}")
+    print(f"wrote {out} rc {p.returncode} | scrim={SCRIM_MODE} | platform={PLATFORM} "
+          f"| frames {NF} | voice {voice or 'none'} | overlays {len(cache)}")
