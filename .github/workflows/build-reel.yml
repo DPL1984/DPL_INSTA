@@ -54,7 +54,7 @@ jobs:
         working-directory: build
         run: |
           set -euo pipefail
-          cp ../reels/footage.py ../reels/overlay_ask.py ../reels/measure.py ../reels/safezone_check.py .
+          cp ../reels/footage.py ../reels/overlay_ask.py ../reels/measure.py ../reels/safezone_check.py ../reels/music.py .
           cp "../reels/configs/$CONFIG.json" cfg.json
           python3 footage.py cfg.json
 
@@ -80,6 +80,14 @@ jobs:
             echo "::endgroup::"
           done
 
+      - name: Add the music bed (video stream copied, measurements unaffected)
+        working-directory: build
+        run: |
+          set -euo pipefail
+          for P in instagram x tiktok; do
+            python3 music.py cfg.json "out/$CONFIG-$P.mp4" "out/$CONFIG-$P.mp4"
+          done
+
       - name: Gate on the playbook numbers
         working-directory: build
         run: |
@@ -101,12 +109,22 @@ jobs:
               print("GATE FAILED: " + "; ".join(bad)); sys.exit(1)
           print("all gates passed on all three platforms")
           PY
+          # Audio gate. Since Nov 1 2026 reels ship with music baked in (Justin: reels need
+          # audio to post, and X has no music picker). A config with "music" MUST carry an
+          # 8.0s audio stream; a config without it must stay silent.
+          WANT=$(python3 -c "import json;print('yes' if json.load(open('cfg.json')).get('music') else 'no')")
           for P in instagram x tiktok; do
-            ffprobe -v error -select_streams a -show_entries stream=codec_type \
-              -of csv=p=0 "out/$CONFIG-$P.mp4" > /tmp/a.txt
-            if [ -s /tmp/a.txt ]; then echo "GATE FAILED: $P has an audio stream"; exit 1; fi
+            F="out/$CONFIG-$P.mp4"
+            A=$(ffprobe -v error -select_streams a -show_entries stream=duration -of csv=p=0 "$F" || true)
+            if [ "$WANT" = yes ]; then
+              [ -n "$A" ] || { echo "GATE FAILED: $P has no audio stream"; exit 1; }
+              python3 -c "import sys;d=float('$A');sys.exit(0 if abs(d-8.0)<=0.06 else 1)" \
+                || { echo "GATE FAILED: $P audio is ${A}s, want 8.0"; exit 1; }
+              echo "$P audio ${A}s, correct"
+            else
+              [ -z "$A" ] || { echo "GATE FAILED: $P has an audio stream but config has no music"; exit 1; }
+            fi
           done
-          echo "no audio stream on any platform, correct"
 
       - name: Commit
         run: |

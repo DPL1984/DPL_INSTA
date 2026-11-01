@@ -1,5 +1,6 @@
 {
  "out": "out/dpl-reel-s04-08-procrastination.mp4",
+ "music": {"mixkit": 614, "start": 70.24, "title": "Silent Descent"},
  "cuts": [18, 44, 67, 69],
  "shots": {
   "A": [26140, 1, 42, 0.0022],
