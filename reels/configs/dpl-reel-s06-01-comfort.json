@@ -1,0 +1,65 @@
+{
+ "out": "out/dpl-reel-s06-01-comfort.mp4",
+ "music": {
+  "mixkit": 22,
+  "start": 123.35,
+  "title": "Piano Reflections"
+ },
+ "cuts": [
+  18,
+  44,
+  67,
+  69
+ ],
+ "shots": {
+  "A": [
+   26140,
+   3,
+   42,
+   0.0022
+  ],
+  "B": [
+   40672,
+   1,
+   44,
+   0.0016
+  ],
+  "C": [
+   4893,
+   1,
+   67,
+   0.0016
+  ],
+  "D": [
+   28085,
+   2,
+   69,
+   0.0016
+  ]
+ },
+ "beats": [
+  {
+   "a": 0,
+   "b": 29,
+   "text": "Comfort costs a family more than anything",
+   "size": 64,
+   "weight": 600
+  },
+  {
+   "a": 30,
+   "b": 71,
+   "text": "The bill comes the day something breaks",
+   "size": 64,
+   "weight": 600
+  },
+  {
+   "a": 72,
+   "b": 239,
+   "text": "Build it while it is quiet",
+   "size": 84,
+   "weight": 700,
+   "gold": true,
+   "ask": "Send this to a man who leads a house"
+  }
+ ]
+}
