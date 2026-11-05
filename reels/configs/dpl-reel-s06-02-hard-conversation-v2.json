@@ -1,0 +1,63 @@
+{
+ "font": "mont",
+ "music": {
+  "mixkit": 686,
+  "start": 31.4,
+  "title": "Mixkit 686 (drums)"
+ },
+ "cuts": [
+  26,
+  46,
+  80,
+  86
+ ],
+ "shots": {
+  "A": [
+   "https://videos.pexels.com/video-files/8860241/8860241-hd_1080_2048_25fps.mp4",
+   6,
+   26,
+   0.0022
+  ],
+  "B": [
+   "https://videos.pexels.com/video-files/8124001/8124001-hd_1080_1920_30fps.mp4",
+   1,
+   46,
+   0.0016
+  ],
+  "C": [
+   "https://videos.pexels.com/video-files/8774182/8774182-hd_1080_1920_25fps.mp4",
+   1,
+   80,
+   0.0016
+  ],
+  "D": [
+   "https://videos.pexels.com/video-files/7983985/7983985-hd_1080_1920_25fps.mp4",
+   1,
+   86,
+   0.0016
+  ]
+ },
+ "beats": [
+  {
+   "a": 0,
+   "b": 25,
+   "text": "THE TALK YOU KEEP PUTTING OFF",
+   "size": 66
+  },
+  {
+   "a": 26,
+   "b": 71,
+   "text": "GETS MORE EXPENSIVE EVERY DAY YOU WAIT",
+   "size": 66
+  },
+  {
+   "a": 72,
+   "b": 239,
+   "text": "HAVE IT THIS WEEK",
+   "size": 92,
+   "gold": true,
+   "ask": "Send this to someone stalling"
+  }
+ ],
+ "out": "out/dpl-reel-s06-02-hard-conversation-v2.mp4"
+}
