@@ -95,8 +95,14 @@ def fade(n):
     i = min(1.0, max(0.0, (n - (XFADE_START + XFADE_LEN)) / XFADE_LEN))
     return round(o, 3), round(i, 3)
 
+# Nov 4 2026: optional config key "font": "mont" sets the copy and the ask in
+# Montserrat (the Command Card face) instead of EB Garamond. Default stays serif.
+COPY_FACE = "EBG"
+
 def load_beats(cfgpath):
+    global COPY_FACE
     cfg = json.load(open(cfgpath))
+    COPY_FACE = "Mont" if str(cfg.get("font", "")).lower() == "mont" else "EBG"
     out = []
     for b in cfg["beats"]:
         out.append(dict(a=b["a"], b=b["b"], text=b["text"],
@@ -115,14 +121,18 @@ def ink_layer(n, BEATS):
     ink = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(ink)
 
-    f, lines = wrap_fit(b["text"], f"EBG-{b['weight']}", b["size"], MAXW)
+    if COPY_FACE == "Mont":
+        f, lines = wrap_fit(b["text"], "Mont-700", b["size"], MAXW, max_lines=3)
+    else:
+        f, lines = wrap_fit(b["text"], f"EBG-{b['weight']}", b["size"], MAXW)
     lead = int(f.size * 1.24)
     top = COPY_Y - (len(lines) * lead) / 2
     for k, ln in enumerate(lines):
         d.text((W / 2, top + k * lead + lead / 2), ln, font=f, fill=b["color"], anchor="mm")
 
     if b.get("ask"):
-        af, alines = wrap_fit(b["ask"], "EBG-600", ASK_SIZE, MAXW, max_lines=1)
+        af, alines = wrap_fit(b["ask"], "Mont-500" if COPY_FACE == "Mont" else "EBG-600",
+                              ASK_SIZE - (8 if COPY_FACE == "Mont" else 0), MAXW, max_lines=1)
         d.text((W / 2, ASK_Y), alines[0], font=af, fill=WHITE, anchor="mm")
 
     tracked(d, W / 2, LOCKUP_Y, WORDMARK, font("Mont-700", 33), WHITE, 7)
