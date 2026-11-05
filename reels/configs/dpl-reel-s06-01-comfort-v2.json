@@ -1,0 +1,63 @@
+{
+ "font": "mont",
+ "music": {
+  "mixkit": 676,
+  "start": 54.2,
+  "title": "Epical Drums 01"
+ },
+ "cuts": [
+  26,
+  46,
+  80,
+  86
+ ],
+ "shots": {
+  "A": [
+   "https://videos.pexels.com/video-files/6414243/6414243-hd_1080_1920_24fps.mp4",
+   3,
+   26,
+   0.0022
+  ],
+  "B": [
+   "https://videos.pexels.com/video-files/28703129/12456660_1080_1920_30fps.mp4",
+   2,
+   46,
+   0.0016
+  ],
+  "C": [
+   "https://videos.pexels.com/video-files/6503180/6503180-hd_1080_1920_25fps.mp4",
+   2,
+   80,
+   0.0016
+  ],
+  "D": [
+   "https://videos.pexels.com/video-files/8470692/8470692-hd_1080_1920_25fps.mp4",
+   3,
+   86,
+   0.0016
+  ]
+ },
+ "beats": [
+  {
+   "a": 0,
+   "b": 25,
+   "text": "COMFORT COSTS A FAMILY MORE THAN ANYTHING",
+   "size": 66
+  },
+  {
+   "a": 26,
+   "b": 71,
+   "text": "THE BILL COMES THE DAY SOMETHING BREAKS",
+   "size": 66
+  },
+  {
+   "a": 72,
+   "b": 239,
+   "text": "BUILD IT WHILE IT IS QUIET",
+   "size": 86,
+   "gold": true,
+   "ask": "Send this to a man who leads a house"
+  }
+ ],
+ "out": "out/dpl-reel-s06-01-comfort-v2.mp4"
+}
