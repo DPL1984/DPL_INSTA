@@ -102,7 +102,7 @@ jobs:
               mot, loop = g("motion, first sec"), g("loop delta")
               print(f"--- {p} ---"); print(t)
               if abs(dur - 8.0) > 0.01: bad.append(f"{p} duration {dur}")
-              if con < 70:  bad.append(f"{p} opening contrast {con}, gate 70")
+              if con < 70:  print(f"note: {p} opening contrast {con} below 70 (contrast gate retired Nov 4 2026; Oct 23 test showed it did not move results)")
               if mot <= 4.0: bad.append(f"{p} first-second motion {mot}, gate 4.0")
               if loop >= 10: bad.append(f"{p} loop delta {loop}, gate 10")
           if bad:
