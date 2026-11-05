@@ -2,7 +2,7 @@
 import os, shutil, subprocess, sys, json
 
 FPS, NF = 30, 240
-GRADE = ("scale=-2:1920:flags=lanczos,crop=1080:1920,"
+GRADE = ("scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,"
          "eq=saturation=0.54:contrast=1.30:gamma=1.04:brightness=0.045,"
          "colorbalance=rs=0.04:rm=0.07:rh=0.05:gm=0.01:bm=-0.05:bh=-0.07,"
          "unsharp=5:5:0.8:5:5:0.0,vignette=PI/4.5,fps=30")
@@ -22,11 +22,18 @@ def make_plan(cuts):
             + [("A", i) for i in range(tail, 0, -1)])
 
 def fetch(mid):
-    p = f"src/{mid}.mp4"
+    # Nov 4 2026: a shot id may be a direct video URL (Pexels file links) as well
+    # as a Mixkit numeric id.
+    if isinstance(mid, str) and mid.startswith("http"):
+        import hashlib
+        p = f"src/u_{hashlib.md5(mid.encode()).hexdigest()[:12]}.mp4"
+        url = mid
+    else:
+        p = f"src/{mid}.mp4"
+        url = f"https://assets.mixkit.co/videos/{mid}/{mid}-720.mp4"
     if not os.path.exists(p):
         os.makedirs("src", exist_ok=True)
-        subprocess.run(["curl", "-sS", "-o", p,
-                        f"https://assets.mixkit.co/videos/{mid}/{mid}-720.mp4"], check=True)
+        subprocess.run(["curl", "-sSfL", "-A", "Mozilla/5.0", "-o", p, url], check=True)
     return p
 
 def main(cfgpath):
