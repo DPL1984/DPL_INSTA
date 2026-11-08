@@ -1,0 +1,66 @@
+{
+ "out": "out/dpl-reel-s05-05-holiday-debt.mp4",
+ "music": {
+  "mixkit": 650,
+  "start": 67.0,
+  "title": "Mixkit Free License instrumental, track 650"
+ },
+ "cuts": [
+  18,
+  44,
+  67,
+  69
+ ],
+ "shots": {
+  "A": [
+   7761,
+   6,
+   42,
+   0.0022
+  ],
+  "B": [
+   27704,
+   1,
+   44,
+   0.0016
+  ],
+  "C": [
+   35889,
+   1,
+   67,
+   0.0016
+  ],
+  "D": [
+   28085,
+   2,
+   69,
+   0.0016
+  ]
+ },
+ "beats": [
+  {
+   "a": 0,
+   "b": 29,
+   "text": "Holiday debt is decided in November",
+   "size": 84,
+   "weight": 700,
+   "gold": true
+  },
+  {
+   "a": 30,
+   "b": 71,
+   "text": "Set the ceiling before the spending starts",
+   "size": 64,
+   "weight": 600
+  },
+  {
+   "a": 72,
+   "b": 239,
+   "text": "Holiday debt is decided in November",
+   "size": 84,
+   "weight": 700,
+   "gold": true,
+   "ask": "Send this to someone before they spend"
+  }
+ ]
+}
