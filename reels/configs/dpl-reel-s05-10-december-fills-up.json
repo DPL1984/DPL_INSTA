@@ -1,0 +1,66 @@
+{
+ "out": "out/dpl-reel-s05-10-december-fills-up.mp4",
+ "music": {
+  "mixkit": 168,
+  "start": 31.0,
+  "title": "Mixkit Free License instrumental, track 168"
+ },
+ "cuts": [
+  18,
+  44,
+  67,
+  69
+ ],
+ "shots": {
+  "A": [
+   26140,
+   1,
+   42,
+   0.0022
+  ],
+  "B": [
+   40672,
+   1,
+   44,
+   0.0016
+  ],
+  "C": [
+   2846,
+   1,
+   67,
+   0.0016
+  ],
+  "D": [
+   28085,
+   2,
+   69,
+   0.0016
+  ]
+ },
+ "beats": [
+  {
+   "a": 0,
+   "b": 29,
+   "text": "December fills up if nobody says no",
+   "size": 84,
+   "weight": 700,
+   "gold": true
+  },
+  {
+   "a": 30,
+   "b": 71,
+   "text": "Pick the three that matter. Decline the rest.",
+   "size": 64,
+   "weight": 600
+  },
+  {
+   "a": 72,
+   "b": 239,
+   "text": "December fills up if nobody says no",
+   "size": 84,
+   "weight": 700,
+   "gold": true,
+   "ask": "Send this to a man whose December is full"
+  }
+ ]
+}
