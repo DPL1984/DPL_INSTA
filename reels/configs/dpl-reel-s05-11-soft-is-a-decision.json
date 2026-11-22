@@ -1,0 +1,66 @@
+{
+ "out": "out/dpl-reel-s05-11-soft-is-a-decision.mp4",
+ "music": {
+  "mixkit": 606,
+  "start": 70.0,
+  "title": "Mixkit Free License instrumental, track 606"
+ },
+ "cuts": [
+  18,
+  44,
+  67,
+  69
+ ],
+ "shots": {
+  "A": [
+   7761,
+   5,
+   42,
+   0.0022
+  ],
+  "B": [
+   9670,
+   1,
+   44,
+   0.0016
+  ],
+  "C": [
+   29956,
+   1,
+   67,
+   0.0016
+  ],
+  "D": [
+   4893,
+   2,
+   69,
+   0.0016
+  ]
+ },
+ "beats": [
+  {
+   "a": 0,
+   "b": 29,
+   "text": "Soft is a decision you make on easy days",
+   "size": 84,
+   "weight": 700,
+   "gold": true
+  },
+  {
+   "a": 30,
+   "b": 71,
+   "text": "Pick one hard thing. Do it today.",
+   "size": 64,
+   "weight": 600
+  },
+  {
+   "a": 72,
+   "b": 239,
+   "text": "Soft is a decision you make on easy days",
+   "size": 84,
+   "weight": 700,
+   "gold": true,
+   "ask": "Send this to a man who has gone comfortable"
+  }
+ ]
+}
